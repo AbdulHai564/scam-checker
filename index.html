@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Check a message or website address for common scam warning signs.">
+  <title>Scam Checker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="detectors.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="frame header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">✓</span> Scam Checker</a>
+    </div>
+  </header>
+
+  <main class="frame">
+    <section class="intro" aria-labelledby="page-title">
+      <h1 id="page-title">Check before<br><em>you click.</em></h1>
+      <p>Paste a message or website link to spot common scam warning signs.</p>
+    </section>
+
+    <section class="checker" aria-label="Scam checker">
+      <div class="tabs" role="tablist" aria-label="What to check">
+        <button type="button" id="message-tab" role="tab" aria-selected="true" aria-controls="message-panel">Message</button>
+        <button type="button" id="website-tab" role="tab" aria-selected="false" aria-controls="website-panel" tabindex="-1">Website link</button>
+      </div>
+
+      <div id="message-panel" class="panel" role="tabpanel" aria-labelledby="message-tab">
+        <form>
+          <label for="message">Message text</label>
+          <textarea id="message" placeholder="Paste a text, email, or chat message here…" maxlength="20000" required></textarea>
+          <div class="form-actions">
+            <button class="primary" type="submit">Check message</button>
+          </div>
+        </form>
+        <div class="result" role="status" aria-atomic="true"></div>
+      </div>
+
+      <div id="website-panel" class="panel" role="tabpanel" aria-labelledby="website-tab" hidden>
+        <form>
+          <label for="website">Website address</label>
+          <input id="website" type="text" inputmode="url" placeholder="https://example.com" maxlength="4096" spellcheck="false" autocomplete="off" required>
+          <div class="form-actions">
+            <button class="primary" type="submit">Check website</button>
+          </div>
+        </form>
+        <div class="result" role="status" aria-atomic="true"></div>
+      </div>
+    </section>
+    <p class="privacy">Checks run in this browser. Pasted links are never opened.</p>
+  </main>
+</body>
+</html>
