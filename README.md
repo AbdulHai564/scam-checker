@@ -2,6 +2,8 @@
 
 A small browser app for spotting common warning signs in messages and website addresses.
 
+[Open Scam Checker](https://abdulhai564.github.io/scam-checker/)
+
 ## Run it
 
 Open `index.html` in a browser. Paste a message or select **Website link** and paste an address. Select the check button to see the result and the reasons behind it.
