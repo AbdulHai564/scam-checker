@@ -57,11 +57,26 @@ class ScamCheckerApp {
     const form = panel.querySelector("form");
     const field = form.querySelector("textarea, input");
     const output = panel.querySelector(".result");
+    const example = form.querySelector("[data-example]");
+    const clear = form.querySelector(".clear");
+    const count = form.querySelector(".field-count");
 
-    field.addEventListener("input", () => {
+    const updateField = () => {
       output.replaceChildren();
       delete output.dataset.level;
-    });
+      clear.disabled = field.value.length === 0;
+      if (count) count.textContent = `${field.value.length.toLocaleString()} / ${field.maxLength.toLocaleString()}`;
+    };
+    const setField = value => {
+      field.value = value;
+      updateField();
+      field.focus();
+    };
+
+    updateField();
+    field.addEventListener("input", updateField);
+    example.addEventListener("click", () => setField(example.dataset.example));
+    clear.addEventListener("click", () => setField(""));
     form.addEventListener("submit", event => {
       event.preventDefault();
       if (!this.engine) return;
@@ -88,13 +103,20 @@ class ScamCheckerApp {
 
   render(output, level, title, advice, reasons = [], host) {
     const heading = document.createElement("h2");
-    heading.textContent = title;
+    const symbol = document.createElement("span");
+    symbol.className = "result-symbol";
+    symbol.setAttribute("aria-hidden", "true");
+    symbol.textContent = level === "low" ? "?" : "!";
+    heading.append(symbol, title);
     const description = document.createElement("p");
     description.textContent = advice;
     const content = [heading];
     if (host) {
       const domain = document.createElement("p");
-      domain.textContent = `Hostname checked: ${host}`;
+      domain.className = "checked-host";
+      const name = document.createElement("code");
+      name.textContent = host;
+      domain.append("Hostname checked ", name);
       content.push(domain);
     }
     if (reasons.length) {
