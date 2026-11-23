@@ -10,6 +10,8 @@ Open `index.html` in a browser. Paste a message or select **Website link** and p
 
 The browser app runs offline when opened from the downloaded project folder. It checks pasted text and URL structure locally. It never opens the submitted address or looks up its reputation. Treat the result as a first pass and verify the source before taking action.
 
+The website checker flags single-character typos and swapped adjacent letters in lookalikes for Amazon, Google, Microsoft, Netflix, and PayPal.
+
 ## Code
 
 - `detector.cpp` contains the C++20 detection engine. `MessageDetector` applies the message rules, `WebsiteDetector` evaluates website warning signs, and `RiskAssessment` encapsulates the evidence and calculates the risk level.

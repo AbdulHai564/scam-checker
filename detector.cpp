@@ -6,7 +6,7 @@
 namespace scam {
 
 enum Signal : unsigned {
-    CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain,
+    CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain, BrandLookalike,
     Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee
 };
 
@@ -17,6 +17,7 @@ constexpr std::array reasons{
     "The domain uses internationalized characters. Check for letters that resemble those in a domain you trust.",
     "The domain has several levels of subdomains. Check who the address actually belongs to.",
     "The hostname contains words commonly used in account or verification links. Check it against the official website.",
+    "The domain name looks like a misspelling of a well-known brand. Open the brand’s official site from a trusted bookmark or type its address yourself.",
     "The message uses urgency or a deadline to pressure you into acting.",
     "The message threatens loss of access to an account or service.",
     "The message asks for a password, private code, or recovery phrase.",
@@ -61,7 +62,46 @@ public:
         if (!isIp && std::count(host.begin(), host.end(), '.') >= 4) result.add(Subdomains, 1);
         static const std::regex accountWord(R"((^|[.-])(login|verify|secure|account|wallet|support)[.-])");
         if (std::regex_search(host.begin(), host.end(), accountWord)) result.add(AccountDomain, 1);
+        if (!isIp && resemblesBrand(host)) result.add(BrandLookalike, 3);
         return result;
+    }
+
+private:
+    static bool resemblesBrand(std::string_view host) {
+        constexpr std::array<std::string_view, 5> brands{"amazon", "google", "microsoft", "netflix", "paypal"};
+        const auto suffix = host.rfind('.');
+        if (suffix == std::string_view::npos) return false;
+
+        auto name = host.substr(0, suffix);
+        auto separator = name.rfind('.');
+        // Recognize common country-code suffixes such as co.uk and com.au.
+        if (host.size() - suffix == 3 && separator != std::string_view::npos) {
+            const auto suffixLabel = name.substr(separator + 1);
+            if (suffixLabel == "co" || suffixLabel == "com" || suffixLabel == "net" || suffixLabel == "org") {
+                name = name.substr(0, separator);
+                separator = name.rfind('.');
+            }
+        }
+        if (separator != std::string_view::npos) name.remove_prefix(separator + 1);
+
+        return std::any_of(brands.begin(), brands.end(), [name](std::string_view brand) {
+            return isSingleTypo(name, brand);
+        });
+    }
+
+    static bool isSingleTypo(std::string_view name, std::string_view brand) {
+        if (name.size() < brand.size()) std::swap(name, brand);
+        if (name.size() > brand.size() + 1) return false;
+
+        const auto mismatch = std::mismatch(brand.begin(), brand.end(), name.begin());
+        const auto prefixLength = static_cast<std::size_t>(mismatch.first - brand.begin());
+        name.remove_prefix(prefixLength);
+        brand.remove_prefix(prefixLength);
+        if (name.empty()) return false;
+        if (name.size() > brand.size()) return name.substr(1) == brand;
+        if (name.substr(1) == brand.substr(1)) return true;
+        return name.size() >= 2 && name[0] == brand[1] && name[1] == brand[0] &&
+            name.substr(2) == brand.substr(2);
     }
 };
 
@@ -75,7 +115,7 @@ public:
             }
         }
 
-        for (unsigned i = CredentialsInUrl; i <= AccountDomain; ++i) {
+        for (unsigned i = CredentialsInUrl; i <= BrandLookalike; ++i) {
             const unsigned flag = 1u << i;
             if (linkFlags & flag) result.add(static_cast<Signal>(i), highRiskLinkFlags & flag ? 5 : 1);
         }
