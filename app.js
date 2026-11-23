@@ -78,7 +78,9 @@ class ScamCheckerApp {
       const [title, advice] = {
         high: ["Strong scam warning signs", "Avoid acting on this. If it claims to be from an organization, contact that organization using details you already trust."],
         caution: ["Use caution", "Verify the sender or domain independently before clicking, paying, or sharing personal information."],
-        low: ["No common warning signs found", "A scam can still pass this check. Verify the source before sharing information or making payments."],
+        low: host
+          ? ["Couldn’t verify this website", "This check evaluates the address. Verify the domain independently before entering information or making payments."]
+          : ["Couldn’t determine from this message", "Verify the sender through a contact method you already trust before sending money or sharing private information."],
       }[assessment.level];
       this.render(output, assessment.level, title, advice, assessment.reasons, host);
     });

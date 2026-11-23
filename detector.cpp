@@ -1,13 +1,20 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <iterator>
 #include <regex>
+#include <set>
+#include <string>
 #include <string_view>
+
+#include "message_model.h"
 
 namespace scam {
 
 enum Signal : unsigned {
     CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain, BrandLookalike,
-    Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee, RoyalHelpRequest
+    Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee, RoyalHelpRequest,
+    FamilyPaymentRequest, SuspiciousWording
 };
 
 constexpr std::array reasons{
@@ -24,8 +31,11 @@ constexpr std::array reasons{
     "The message requests payment through a method commonly used in scams.",
     "The message claims you won a prize or asks you to claim one.",
     "The message promises unusual returns or mentions a fee to release money or a prize.",
-    "The sender claims to be royalty and asks for help. This is a common opening in scams that later ask for money or personal information."
+    "The sender claims to be royalty and asks for help. This is a common opening in scams that later ask for money or personal information.",
+    "Someone claiming to be family is using a new number and asking for money. Call them on a number you already know.",
+    "The wording resembles messages in a labeled text scam collection. Verify the request through a contact method you already trust."
 };
+static_assert(reasons.size() <= 16, "Warning flags must fit below the packed risk level.");
 
 class RiskAssessment {
 public:
@@ -38,9 +48,9 @@ public:
         unsigned score = 0;
         for (unsigned i = 0; i < weights_.size(); ++i) {
             if (weights_[i] != 0) flags |= 1u << i;
-            score += weights_[i];
+            if (i != SuspiciousWording) score += weights_[i];
         }
-        const unsigned level = score >= 5 ? 2 : score > 0 ? 1 : 0;
+        const unsigned level = score >= 5 ? 2 : flags != 0 ? 1 : 0;
         return flags | (level << 16);
     }
 
@@ -106,6 +116,49 @@ private:
     }
 };
 
+class MessageClassifier {
+public:
+    bool resemblesScam(std::string_view message) const {
+        std::string normalized(message);
+        for (auto& ch : normalized) {
+            if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
+        }
+
+        static const std::regex token(R"(https?://\S+|\bwww\.\S+|[a-z]+|[0-9]+)");
+        std::string previous;
+        std::set<std::size_t> known;
+        for (auto it = std::sregex_iterator(normalized.begin(), normalized.end(), token);
+             it != std::sregex_iterator(); ++it) {
+            auto word = it->str();
+            if (word.starts_with("http://") || word.starts_with("https://") || word.starts_with("www.")) {
+                word = "_link";
+            } else if (word[0] >= '0' && word[0] <= '9') {
+                word = "_number";
+            } else if (word.size() > 24) {
+                continue;
+            }
+            addFeature(known, word);
+            if (!previous.empty()) addFeature(known, previous + ' ' + word);
+            previous = std::move(word);
+        }
+
+        if (known.size() < 4) return false;
+        double total = 0;
+        for (const auto index : known) total += model::weights[index].weight;
+        return model::bias + total / std::sqrt(static_cast<double>(known.size())) >= model::threshold;
+    }
+
+private:
+    static void addFeature(std::set<std::size_t>& known, std::string_view term) {
+        const auto end = std::end(model::weights);
+        const auto match = std::lower_bound(std::begin(model::weights), end, term,
+            [](const auto& entry, std::string_view text) { return entry.text < text; });
+        if (match != end && match->text == term) {
+            known.insert(static_cast<std::size_t>(match - std::begin(model::weights)));
+        }
+    }
+};
+
 class MessageDetector {
 public:
     RiskAssessment check(std::string_view message, unsigned linkFlags, unsigned highRiskLinkFlags) const {
@@ -120,10 +173,22 @@ public:
             const unsigned flag = 1u << i;
             if (linkFlags & flag) result.add(static_cast<Signal>(i), highRiskLinkFlags & flag ? 5 : 1);
         }
+        if (resemblesFamilyPaymentRequest(message)) result.add(FamilyPaymentRequest, 3);
+        if (classifier_.resemblesScam(message)) result.add(SuspiciousWording, 1);
         return result;
     }
 
 private:
+    MessageClassifier classifier_;
+
+    static bool resemblesFamilyPaymentRequest(std::string_view message) {
+        static const std::regex family(R"(\b(?:mom|mum|dad|mummy|daddy|your son|your daughter)\b)", std::regex::icase);
+        static const std::regex number(R"(\b(?:new|different|temporary) (?:phone |mobile )?number\b)", std::regex::icase);
+        static const std::regex payment(R"(\b(?:could|can|would|will) you\b.{0,35}\b(?:pay|lend|transfer|(?:cover|send)\b.{0,24}\b(?:cash|money|funds|rent|the bill|payment))\b)", std::regex::icase);
+        return std::regex_search(message.begin(), message.end(), family) &&
+            std::regex_search(message.begin(), message.end(), number) &&
+            std::regex_search(message.begin(), message.end(), payment);
+    }
     struct Rule {
         std::regex pattern;
         Signal signal;
