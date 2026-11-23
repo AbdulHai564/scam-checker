@@ -7,7 +7,7 @@ namespace scam {
 
 enum Signal : unsigned {
     CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain, BrandLookalike,
-    Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee
+    Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee, RoyalHelpRequest
 };
 
 constexpr std::array reasons{
@@ -23,7 +23,8 @@ constexpr std::array reasons{
     "The message asks for a password, private code, or recovery phrase.",
     "The message requests payment through a method commonly used in scams.",
     "The message claims you won a prize or asks you to claim one.",
-    "The message promises unusual returns or mentions a fee to release money or a prize."
+    "The message promises unusual returns or mentions a fee to release money or a prize.",
+    "The sender claims to be royalty and asks for help. This is a common opening in scams that later ask for money or personal information."
 };
 
 class RiskAssessment {
@@ -130,13 +131,14 @@ private:
     };
 
     static inline const auto insensitive = std::regex::icase;
-    static inline const std::array<Rule, 6> rules_{{
+    static inline const std::array<Rule, 7> rules_{{
         {std::regex(R"(\b(?:urgent(?:ly)?|act now|immediately|final warning|last chance|within \d+ hours?)\b)", insensitive), Urgency, 1},
         {std::regex(R"(\b(?:account|service|access)\b.{0,55}\b(?:suspend(?:ed)?|locked|clos(?:ed|ure)|terminat(?:ed|ion))\b)", insensitive), AccountThreat, 2},
         {std::regex(R"(\b(?:send|share|provide|enter|confirm|reply with|tell us|give us)\b.{0,55}\b(?:password|pin|otp|one[- ]time (?:code|password)|verification code|seed phrase|recovery phrase)\b)", insensitive), PrivateCode, 5},
         {std::regex(R"(\b(?:pay|send|buy|purchase|transfer)\b.{0,70}\b(?:gift cards?|wire transfer|bitcoin|crypto(?:currency)?)\b)", insensitive), PaymentMethod, 3},
         {std::regex(R"(\b(?:you(?:'ve| have) won|you won|claim (?:your|a) prize|lottery winner)\b)", insensitive), Prize, 2},
         {std::regex(R"(\b(?:upfront fee|processing fee|release fee|guaranteed returns?|double your money)\b)", insensitive), Fee, 2},
+        {std::regex(R"(\b(?:i am|i'm|iam) (?:a |an |the )?(?:[a-z]+ ){0,2}(?:prince|princess|king|queen|royal heir)(?:[,;.!] *| +)(?:and )?(?:i )?(?:urgently )?(?:need (?:your )?(?:help|assistance)|am asking for (?:your )?help|ask for (?:your )?help)\b)", insensitive), RoyalHelpRequest, 3},
     }};
 };
 
