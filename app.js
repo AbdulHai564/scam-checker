@@ -3,13 +3,27 @@
 class ScamCheckerApp {
   constructor() {
     this.tabs = [...document.querySelectorAll('[role="tab"]')];
-    const websiteDetector = new WebsiteDetector();
-    this.connectForm("message-panel", new MessageDetector(websiteDetector));
-    this.connectForm("website-panel", websiteDetector);
+    this.connectForm("message-panel", (engine, value) => engine.message(value));
+    this.connectForm("website-panel", (engine, value) => engine.website(value));
 
     for (const tab of this.tabs) {
       tab.addEventListener("click", () => this.selectTab(tab));
       tab.addEventListener("keydown", event => this.navigateTabs(event, tab));
+    }
+
+    this.loadEngine();
+  }
+
+  async loadEngine() {
+    const status = document.getElementById("engine-status");
+    status.textContent = "Loading checker…";
+    try {
+      this.engine = new DetectorEngine(await createScamEngine());
+      document.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = false; });
+      status.textContent = "";
+    } catch (error) {
+      console.error(error);
+      status.textContent = "The checker couldn’t load. Try reloading this page in a browser that supports WebAssembly.";
     }
   }
 
@@ -38,7 +52,7 @@ class ScamCheckerApp {
     nextTab.focus();
   }
 
-  connectForm(panelId, detector) {
+  connectForm(panelId, check) {
     const panel = document.getElementById(panelId);
     const form = panel.querySelector("form");
     const field = form.querySelector("textarea, input");
@@ -50,9 +64,10 @@ class ScamCheckerApp {
     });
     form.addEventListener("submit", event => {
       event.preventDefault();
+      if (!this.engine) return;
       let result;
       try {
-        result = detector.check(field.value);
+        result = check(this.engine, field.value);
       } catch (error) {
         this.render(output, "error", "Check your input", error.message);
         field.focus();
