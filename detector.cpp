@@ -2,6 +2,7 @@
 #include <array>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <regex>
 #include <set>
 #include <string>
@@ -15,7 +16,7 @@ namespace scam {
 enum Signal : unsigned {
     CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain, BrandLookalike,
     Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee, RoyalHelpRequest,
-    FamilyPaymentRequest, SuspiciousWording
+    FamilyPaymentRequest, FinancialDetailsRequest, SuspiciousWording
 };
 
 constexpr std::array reasons{
@@ -34,9 +35,10 @@ constexpr std::array reasons{
     "The message promises unusual returns or mentions a fee to release money or a prize.",
     "The sender claims to be royalty and asks for help. This is a common opening in scams that later ask for money or personal information.",
     "Someone claiming to be family is using a new number and asking for money. Call them on a number you already know.",
+    "The sender asks for bank or card details. Check who they are and why they need the information before sharing it.",
     "The wording resembles messages in a labeled text scam collection. Verify the request through a contact method you already trust."
 };
-static_assert(reasons.size() <= 16, "Warning flags must fit in the result.");
+static_assert(reasons.size() <= std::numeric_limits<unsigned>::digits, "Warning flags must fit in the result.");
 
 class RiskAssessment {
 public:
@@ -197,7 +199,7 @@ private:
     };
 
     static inline const auto insensitive = std::regex::icase;
-    static inline const std::array<Rule, 7> rules_{{
+    static inline const std::array<Rule, 8> rules_{{
         {std::regex(R"(\b(?:urgent(?:ly)?|act now|immediately|final warning|last chance|within \d+ hours?)\b)", insensitive), Urgency, 1},
         {std::regex(R"(\b(?:account|service|access)\b.{0,55}\b(?:suspend(?:ed)?|locked|clos(?:ed|ure)|terminat(?:ed|ion))\b)", insensitive), AccountThreat, 2},
         {std::regex(R"(\b(?:send|share|provide|enter|confirm|reply with|tell us|give us)\b.{0,55}\b(?:password|pin|otp|one[- ]time (?:code|password)|verification code|seed phrase|recovery phrase)\b)", insensitive), PrivateCode, 5},
@@ -205,6 +207,7 @@ private:
         {std::regex(R"(\b(?:you(?:'ve| have) won|you won|claim (?:your|a) prize|lottery winner)\b)", insensitive), Prize, 2},
         {std::regex(R"(\b(?:upfront fee|processing fee|release fee|guaranteed returns?|double your money)\b)", insensitive), Fee, 2},
         {std::regex(R"(\b(?:i am|i'm|iam) (?:a |an |the )?(?:[a-z]+ ){0,2}(?:prince|princess|king|queen|royal heir)(?:[,;.!] *| +)(?:and )?(?:i )?(?:urgently )?(?:need (?:your )?(?:help|assistance)|am asking for (?:your )?help|ask for (?:your )?help)\b)", insensitive), RoyalHelpRequest, 3},
+        {std::regex(R"((?:\b(?:can|could|may) (?:i|we) (?:please )?(?:have|get)|\b(?:can|could|would) you (?:please )?(?:send|share|provide|confirm)(?: me| us| with me| with us)?|(?:^|[.!?] )\s*(?:please )?(?:send|share|provide|confirm|enter)(?: me| us| with me| with us)?) (?:your|you|the) (?:bank (?:account )?(?:details|information|number)|(?:bank )?account and routing numbers?|(?:credit |debit )?card (?:details|number)|routing number|iban)\b)", insensitive), FinancialDetailsRequest, 3},
     }};
 };
 

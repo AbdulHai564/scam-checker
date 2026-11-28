@@ -173,8 +173,8 @@ std::string renderResult(const View& view) {
     }
     if (view.flags != 0) {
         html += "<ul>";
-        for (unsigned i = 0; i < 16; ++i) {
-            if (view.flags & (1u << i)) html += "<li>" + escapeHtml(scam::warningReason(i)) + "</li>";
+        for (unsigned flags = view.flags, i = 0; flags != 0; flags >>= 1, ++i) {
+            if (flags & 1u) html += "<li>" + escapeHtml(scam::warningReason(i)) + "</li>";
         }
         html += "</ul>";
     }
