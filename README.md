@@ -26,6 +26,8 @@ Open [Scam Checker on this computer](http://127.0.0.1:8080/). Choose **Message**
 
 The server binds to loopback by default. It does not log or store pasted content or open submitted links. When hosted publicly, the HTML forms send submissions to that host’s C++ server over HTTPS. The risk result reflects text and address patterns. Verify the sender or domain before acting.
 
+The website checker shows the parsed hostname and flags common link shorteners, disguised brand domains, encoded hostnames, nonstandard ports, and possible external destinations named in redirect parameters. It evaluates the address text without following redirects or looking up site reputation.
+
 ## Host on a web service
 
 The `Dockerfile` builds a Linux image with the frontend embedded. It listens on `0.0.0.0` using the `PORT` environment variable, with `8080` as the container default. Use `/health` for the health check and let the hosting service terminate HTTPS. GitHub Pages serves the static project information page.

@@ -11,7 +11,16 @@ struct Assessment {
     Level level{Level::uncertain};
 };
 
-Assessment checkWebsite(std::string_view host, bool hasUserInfo, bool usesHttp);
+struct WebsiteAddress {
+    std::string_view host;
+    bool hasUserInfo;
+    bool usesHttp;
+    bool encodedHost;
+    bool nonstandardPort;
+    bool possibleRedirect;
+};
+
+Assessment checkWebsite(WebsiteAddress address);
 Assessment checkMessage(std::string_view message, unsigned linkFlags, unsigned highRiskLinkFlags);
 std::string_view warningReason(unsigned index);
 

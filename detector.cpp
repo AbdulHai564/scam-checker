@@ -15,6 +15,7 @@ namespace scam {
 
 enum Signal : unsigned {
     CredentialsInUrl, Unencrypted, IpAddress, Internationalized, Subdomains, AccountDomain, BrandLookalike,
+    BrandDisguise, ShortenedLink, EncodedHostname, NonstandardPort, ExternalRedirect,
     Urgency, AccountThreat, PrivateCode, PaymentMethod, Prize, Fee, RoyalHelpRequest,
     FamilyPaymentRequest, FinancialDetailsRequest, SuspiciousWording
 };
@@ -27,6 +28,11 @@ constexpr std::array reasons{
     "The domain has several levels of subdomains. Check who the address actually belongs to.",
     "The hostname contains words commonly used in account or verification links. Check it against the official website.",
     "The domain name looks like a misspelling of a well-known brand. Open the brand’s official site from a trusted bookmark or type its address yourself.",
+    "The hostname contains a familiar brand domain followed by a different domain. Read the full hostname before trusting the link.",
+    "This link uses a shortener. Its final destination is hidden.",
+    "The hostname uses encoded characters that can make the destination harder to read.",
+    "The address uses a nonstandard port for its protocol.",
+    "The address contains a possible redirect to a different hostname.",
     "The message uses urgency or a deadline to pressure you into acting.",
     "The message threatens loss of access to an account or service.",
     "The message asks for a password, private code, or recovery phrase.",
@@ -63,10 +69,14 @@ private:
 
 class WebsiteDetector {
 public:
-    RiskAssessment check(std::string_view host, bool hasUserInfo, bool usesHttp) const {
+    RiskAssessment check(WebsiteAddress address) const {
         RiskAssessment result;
-        if (hasUserInfo) result.add(CredentialsInUrl, 5);
-        if (usesHttp) result.add(Unencrypted, 1);
+        const auto host = address.host;
+        if (address.hasUserInfo) result.add(CredentialsInUrl, 5);
+        if (address.usesHttp) result.add(Unencrypted, 1);
+        if (address.encodedHost) result.add(EncodedHostname, 2);
+        if (address.nonstandardPort) result.add(NonstandardPort, 1);
+        if (address.possibleRedirect) result.add(ExternalRedirect, 2);
         const bool isIp = host.starts_with("[") ||
             host.find_first_not_of("0123456789.") == std::string_view::npos;
         if (isIp) result.add(IpAddress, 2);
@@ -77,10 +87,32 @@ public:
         static const std::regex accountWord(R"((^|[.-])(login|verify|secure|account|wallet|support)[.-])");
         if (std::regex_search(host.begin(), host.end(), accountWord)) result.add(AccountDomain, 1);
         if (!isIp && resemblesBrand(host)) result.add(BrandLookalike, 3);
+        if (containsDisguisedBrand(host)) result.add(BrandDisguise, 5);
+        if (isShortener(host)) result.add(ShortenedLink, 2);
         return result;
     }
 
 private:
+    static bool containsDisguisedBrand(std::string_view host) {
+        constexpr std::array domains{"amazon.com", "amazon.co.uk", "google.com", "microsoft.com", "netflix.com", "paypal.com"};
+        for (const std::string_view brand : domains) {
+            if (host == brand || (host.ends_with(brand) && host[host.size() - brand.size() - 1] == '.')) {
+                continue;
+            }
+            for (auto start = host.find(brand); start != std::string_view::npos; start = host.find(brand, start + 1)) {
+                const auto end = start + brand.size();
+                if ((start == 0 || host[start - 1] == '.') && end < host.size() && host[end] == '.') return true;
+            }
+        }
+        return false;
+    }
+
+    static bool isShortener(std::string_view host) {
+        constexpr std::array domains{"bit.ly", "cutt.ly", "is.gd", "lnkd.in", "ow.ly", "rb.gy", "rebrand.ly", "t.co", "tinyurl.com"};
+        if (host.starts_with("www.")) host.remove_prefix(4);
+        return std::find(domains.begin(), domains.end(), host) != domains.end();
+    }
+
     static bool resemblesBrand(std::string_view host) {
         constexpr std::array<std::string_view, 5> brands{"amazon", "google", "microsoft", "netflix", "paypal"};
         const auto suffix = host.rfind('.');
@@ -172,7 +204,7 @@ public:
             }
         }
 
-        for (unsigned i = CredentialsInUrl; i <= BrandLookalike; ++i) {
+        for (unsigned i = CredentialsInUrl; i <= ExternalRedirect; ++i) {
             const unsigned flag = 1u << i;
             if (linkFlags & flag) result.add(static_cast<Signal>(i), highRiskLinkFlags & flag ? 5 : 1);
         }
@@ -211,8 +243,8 @@ private:
     }};
 };
 
-Assessment checkWebsite(std::string_view host, bool hasUserInfo, bool usesHttp) {
-    return WebsiteDetector{}.check(host, hasUserInfo, usesHttp).assess();
+Assessment checkWebsite(WebsiteAddress address) {
+    return WebsiteDetector{}.check(address).assess();
 }
 
 Assessment checkMessage(std::string_view message, unsigned linkFlags, unsigned highRiskLinkFlags) {

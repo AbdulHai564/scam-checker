@@ -2,6 +2,8 @@
 #include <ada.h>
 #include <utf8proc.h>
 
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstdlib>
 #include <iostream>
@@ -29,6 +31,7 @@ enum class Mode { message, website };
 struct Website {
     std::string hostname;
     scam::Assessment assessment;
+    std::string redirectHost;
 };
 
 struct View {
@@ -37,6 +40,7 @@ struct View {
     std::string_view style;
     unsigned flags{};
     std::string hostname;
+    std::string redirectHost;
 };
 
 std::string escapeHtml(std::string_view value) {
@@ -82,6 +86,42 @@ std::string normalizeMessage(std::string_view text) {
     return normalized;
 }
 
+std::string canonicalHostname(const ada::url_aggregator& url) {
+    std::string host(url.get_hostname());
+    if (host.ends_with('.')) host.pop_back();
+    return host;
+}
+
+bool matchesDomain(std::string_view host, std::string_view domain) {
+    return host == domain || (host.size() > domain.size() && host.ends_with(domain) &&
+        host[host.size() - domain.size() - 1] == '.');
+}
+
+std::string findRedirectHost(const ada::url_aggregator& url, std::string_view host) {
+    if (url.get_search().empty()) return {};
+    constexpr std::array<std::string_view, 12> keys{
+        "redirect", "redirect_to", "redirect_url", "redirect_uri", "redirecturl",
+        "return", "return_to", "returnurl", "next", "continue", "destination", "target"
+    };
+    const auto path = url.get_pathname();
+    const bool redirectPath = path == "/redirect" || path == "/out" || path == "/url" || path == "/link";
+    for (const auto& [name, value] : ada::url_search_params(url.get_search())) {
+        auto key = name;
+        for (auto& ch : key) {
+            if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
+        }
+        if (std::find(keys.begin(), keys.end(), key) == keys.end() && !(redirectPath && key == "url")) continue;
+
+        const auto destination = value.starts_with("//") ? ada::parse(value, &url) : ada::parse(value);
+        if (!destination || (destination->get_protocol() != "https:" && destination->get_protocol() != "http:")) continue;
+        auto destinationHost = canonicalHostname(*destination);
+        if (!destinationHost.empty() && !matchesDomain(destinationHost, host) && !matchesDomain(host, destinationHost)) {
+            return destinationHost;
+        }
+    }
+    return {};
+}
+
 std::optional<Website> checkAddress(std::string_view address) {
     constexpr auto space = " \t\n\r\v\f"sv;
     const auto first = address.find_first_not_of(space);
@@ -93,15 +133,22 @@ std::optional<Website> checkAddress(std::string_view address) {
     static const std::regex scheme(R"(^[a-z][a-z\d+.-]*://)", std::regex::icase);
     const auto candidate = std::regex_search(address.begin(), address.end(), scheme)
         ? std::string(address) : "https://" + std::string(address);
+    auto authority = std::string_view(candidate).substr(candidate.find("://") + 3);
+    authority = authority.substr(0, authority.find_first_of("/?#"));
+    if (authority.empty()) return std::nullopt;
+    const auto userInfoEnd = authority.rfind('@');
+    if (userInfoEnd != std::string_view::npos) authority.remove_prefix(userInfoEnd + 1);
     const auto url = ada::parse(candidate);
     if (!url || (url->get_protocol() != "https:" && url->get_protocol() != "http:")) return std::nullopt;
 
-    std::string host(url->get_hostname());
-    if (host.ends_with('.')) host.pop_back();
+    auto host = canonicalHostname(*url);
     static const std::regex hostname(R"([a-z\d](?:[a-z\d-]{0,61}[a-z\d])?(?:\.[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?)+)");
     if (host.size() > 253 || (!host.starts_with('[') && !std::regex_match(host, hostname))) return std::nullopt;
     const bool userInfo = !url->get_username().empty() || !url->get_password().empty();
-    return Website{host, scam::checkWebsite(host, userInfo, url->get_protocol() == "http:")};
+    auto redirectHost = findRedirectHost(*url, host);
+    const auto assessment = scam::checkWebsite({host, userInfo, url->get_protocol() == "http:",
+        authority.find('%') != std::string_view::npos, !url->get_port().empty(), !redirectHost.empty()});
+    return Website{std::move(host), assessment, std::move(redirectHost)};
 }
 
 scam::Assessment checkMessageLinks(const std::string& message) {
@@ -133,12 +180,14 @@ scam::Assessment checkMessageLinks(const std::string& message) {
 View assess(Mode mode, std::string_view input) {
     scam::Assessment result;
     std::string host;
+    std::string redirectHost;
     if (mode == Mode::website) {
         if (input.size() > websiteLimit) throw std::invalid_argument(invalidWebsite.data());
         auto website = checkAddress(input);
         if (!website) throw std::invalid_argument(invalidWebsite.data());
         result = website->assessment;
         host = std::move(website->hostname);
+        redirectHost = std::move(website->redirectHost);
     } else {
         if (input.size() > messageLimit) throw std::invalid_argument("Paste a shorter message (up to 20,000 UTF-8 bytes).");
         const auto text = normalizeMessage(input);
@@ -149,14 +198,14 @@ View assess(Mode mode, std::string_view input) {
 
     if (result.level == Level::high) {
         return {"Strong scam warning signs", "Avoid acting on this. Contact the claimed sender using details you already trust.",
-            "high", result.flags, std::move(host)};
+            "high", result.flags, std::move(host), std::move(redirectHost)};
     }
     if (result.level == Level::caution) {
         return {"Use caution", "Verify the sender or domain independently before clicking, paying, or sharing personal information.",
-            "caution", result.flags, std::move(host)};
+            "caution", result.flags, std::move(host), std::move(redirectHost)};
     }
     if (mode == Mode::website) {
-        return {"Couldn’t verify this website", "Verify the domain independently before entering information or making payments.",
+        return {"Couldn’t verify this website", "This check analyzes the address. Verify the domain independently before entering information or making payments.",
             "low", 0, std::move(host)};
     }
     return {"Couldn’t determine from this message", "Verify the sender through a contact method you already trust before sending money or sharing private information.", "low", 0, {}};
@@ -170,6 +219,9 @@ std::string renderResult(const View& view) {
     html += "</span>" + escapeHtml(view.title) + "</h2>";
     if (!view.hostname.empty()) {
         html += "<p class=\"checked-host\">Hostname checked <code>" + escapeHtml(view.hostname) + "</code></p>";
+    }
+    if (!view.redirectHost.empty()) {
+        html += "<p class=\"checked-host\">Possible redirect host <code>" + escapeHtml(view.redirectHost) + "</code></p>";
     }
     if (view.flags != 0) {
         html += "<ul>";
