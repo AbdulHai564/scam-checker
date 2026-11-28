@@ -19,7 +19,6 @@ body {
     radial-gradient(ellipse at 9% 42%, #123236 0%, transparent 46%),
     radial-gradient(ellipse at 89% 0%, #211f40 0%, transparent 42%);
 }
-[hidden], #engine-status:empty { display: none !important; }
 button, textarea, input { font: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
@@ -141,7 +140,7 @@ h1 span { display: block; color: var(--accent); }
   border-radius: .88rem;
   background: var(--inset);
 }
-.tabs button {
+.tabs a {
   flex: 1;
   display: flex;
   align-items: center;
@@ -154,9 +153,10 @@ h1 span { display: block; color: var(--accent); }
   color: var(--muted);
   font-size: .95rem;
   font-weight: 650;
+  text-decoration: none;
 }
-.tabs button:hover { background: #222f45; color: white; }
-.tabs button[aria-selected="true"] {
+.tabs a:hover { background: #222f45; color: white; }
+.tabs a[aria-current="page"] {
   border-color: #3e6c70;
   background: #1b333e;
   color: var(--accent);
@@ -195,11 +195,10 @@ textarea { min-height: 10rem; resize: vertical; }
   color: var(--accent);
   font-size: .875rem;
   font-weight: 650;
+  text-decoration: none;
 }
-.text-button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: .22em; }
+.text-button:hover { text-decoration: underline; text-underline-offset: .22em; }
 .text-button.clear { color: var(--muted); }
-.text-button:disabled { opacity: .55; cursor: default; }
-.field-count { margin-inline-start: auto; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .form-actions { display: flex; margin-top: .85rem; }
 .primary {
   width: 100%;
@@ -210,9 +209,10 @@ textarea { min-height: 10rem; resize: vertical; }
   border-radius: .72rem;
   font-weight: 750;
 }
-.primary:hover:not(:disabled) { background: var(--accent-hover); }
-.primary:disabled { background: #355051; color: #c2d5d7; cursor: wait; }
-#engine-status, .javascript-note { margin: 0; padding: 0 var(--card-padding) 1.15rem; font-size: .9rem; }
+.primary:hover { background: var(--accent-hover); }
+.checker.panel h2 { margin-top: 0; }
+.checker.panel p { color: var(--muted); line-height: 1.55; }
+.checker.panel a { color: var(--accent); }
 .privacy {
   display: flex;
   align-items: center;
@@ -236,6 +236,7 @@ textarea { min-height: 10rem; resize: vertical; }
   padding: 1rem 1.05rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  scroll-margin-top: 1rem;
 }
 .result[data-level="high"], .result[data-level="error"] {
   --result-color: #ffa9b6;

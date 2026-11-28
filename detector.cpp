@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include "detector.h"
 #include "message_model.h"
 
 namespace scam {
@@ -35,7 +36,7 @@ constexpr std::array reasons{
     "Someone claiming to be family is using a new number and asking for money. Call them on a number you already know.",
     "The wording resembles messages in a labeled text scam collection. Verify the request through a contact method you already trust."
 };
-static_assert(reasons.size() <= 16, "Warning flags must fit below the packed risk level.");
+static_assert(reasons.size() <= 16, "Warning flags must fit in the result.");
 
 class RiskAssessment {
 public:
@@ -43,15 +44,15 @@ public:
         weights_[signal] = std::max(weights_[signal], weight);
     }
 
-    unsigned packedResult() const {
+    Assessment assess() const {
         unsigned flags = 0;
         unsigned score = 0;
         for (unsigned i = 0; i < weights_.size(); ++i) {
             if (weights_[i] != 0) flags |= 1u << i;
             if (i != SuspiciousWording) score += weights_[i];
         }
-        const unsigned level = score >= 5 ? 2 : flags != 0 ? 1 : 0;
-        return flags | (level << 16);
+        const auto level = score >= 5 ? Level::high : flags != 0 ? Level::caution : Level::uncertain;
+        return {flags, level};
     }
 
 private:
@@ -207,19 +208,16 @@ private:
     }};
 };
 
+Assessment checkWebsite(std::string_view host, bool hasUserInfo, bool usesHttp) {
+    return WebsiteDetector{}.check(host, hasUserInfo, usesHttp).assess();
 }
 
-// The browser decodes the low 16 bits as warning flags and the upper bits as the risk level.
-extern "C" {
-    unsigned check_website(const char* host, int hasUserInfo, int usesHttp) {
-        return scam::WebsiteDetector{}.check(host, hasUserInfo != 0, usesHttp != 0).packedResult();
-    }
+Assessment checkMessage(std::string_view message, unsigned linkFlags, unsigned highRiskLinkFlags) {
+    return MessageDetector{}.check(message, linkFlags, highRiskLinkFlags).assess();
+}
 
-    unsigned check_message(const char* message, unsigned linkFlags, unsigned highRiskLinkFlags) {
-        return scam::MessageDetector{}.check(message, linkFlags, highRiskLinkFlags).packedResult();
-    }
+std::string_view warningReason(unsigned index) {
+    return index < reasons.size() ? reasons[index] : "";
+}
 
-    const char* warning_reason(unsigned index) {
-        return index < scam::reasons.size() ? scam::reasons[index] : nullptr;
-    }
 }

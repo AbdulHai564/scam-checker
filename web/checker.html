@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b101b">
+  <title>Scam Checker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="frame header-inner">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">✓</span> Scam Checker</a>
+      <a class="source-link" href="https://github.com/AbdulHai564/scam-checker">View on GitHub</a>
+    </div>
+  </header>
+  <main class="frame">
+    <section class="intro" aria-labelledby="page-title">
+      <h1 id="page-title">Check before <span>you click.</span></h1>
+      <p>Spot scam warning signs in a text, email, or website link before you respond.</p>
+      <div class="shield-art" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
+    </section>
+    <section class="checker" aria-label="Scam checker">
+      <nav class="tabs" aria-label="What to check">
+        <a href="/message" {{message-current}}><span class="icon icon-message" aria-hidden="true"></span>Message</a>
+        <a href="/website" {{website-current}}><span class="icon icon-link" aria-hidden="true"></span>Website link</a>
+      </nav>
+      <div class="panel">
+        <form method="post" action="{{action}}#result">
+          {{field}}
+          <div class="field-tools">
+            <a class="text-button" href="{{action}}/example#result">Check an example</a>
+            <a class="text-button clear" href="{{action}}">Clear</a>
+          </div>
+          <div class="form-actions">
+            <button class="primary" type="submit">{{submit}}</button>
+          </div>
+        </form>
+        {{result}}
+      </div>
+      <p class="privacy"><span class="icon icon-lock" aria-hidden="true"></span><span>{{privacy}}</span></p>
+    </section>
+  </main>
+</body>
+</html>

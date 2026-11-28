@@ -3,70 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Check a message or website address for common scam warning signs.">
   <meta name="theme-color" content="#0b101b">
   <title>Scam Checker</title>
-  <link rel="stylesheet" href="styles.css?v=5">
-  <script src="scam-engine.js?v=4" defer></script>
-  <script src="engine-client.js" defer></script>
-  <script src="app.js?v=5" defer></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
     <div class="frame header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">✓</span> Scam Checker</a>
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">✓</span> Scam Checker</a>
       <a class="source-link" href="https://github.com/AbdulHai564/scam-checker">View on GitHub</a>
     </div>
   </header>
-
   <main class="frame">
-    <section class="intro" aria-labelledby="page-title">
-      <h1 id="page-title">Check before <span>you click.</span></h1>
-      <p>Spot scam warning signs in a text, email, or website link before you respond.</p>
-      <div class="shield-art" aria-hidden="true">
-        <i></i><i></i><i></i><span></span>
-      </div>
+    <section class="intro">
+      <h1>Scam Checker <span>in C++.</span></h1>
+      <p>Check a message or website link for common scam warning signs.</p>
     </section>
-
-    <section class="checker" aria-label="Scam checker">
-      <div class="tabs" role="tablist" aria-label="What to check">
-        <button type="button" id="message-tab" role="tab" aria-selected="true" aria-controls="message-panel"><span class="icon icon-message" aria-hidden="true"></span>Message</button>
-        <button type="button" id="website-tab" role="tab" aria-selected="false" aria-controls="website-panel" tabindex="-1"><span class="icon icon-link" aria-hidden="true"></span>Website link</button>
-      </div>
-
-      <div id="message-panel" class="panel" role="tabpanel" aria-labelledby="message-tab">
-        <form>
-          <label for="message">Message text</label>
-          <textarea id="message" placeholder="Paste a text, email, or chat message here…" maxlength="20000" required></textarea>
-          <div class="field-tools">
-            <button type="button" class="text-button" data-example="We missed you. Reschedule delivery at https://parcel.example.">Use example</button>
-            <button type="button" class="text-button clear" disabled>Clear</button>
-            <span class="field-count" aria-hidden="true"></span>
-          </div>
-          <div class="form-actions">
-            <button class="primary" type="submit" disabled>Check message</button>
-          </div>
-        </form>
-        <div class="result" role="status" aria-atomic="true"></div>
-      </div>
-
-      <div id="website-panel" class="panel" role="tabpanel" aria-labelledby="website-tab" hidden>
-        <form>
-          <label for="website">Website address</label>
-          <input id="website" type="text" inputmode="url" placeholder="https://example.com" maxlength="4096" spellcheck="false" autocomplete="off" autocapitalize="none" required>
-          <div class="field-tools">
-            <button type="button" class="text-button" data-example="https://aamazon.example">Use example</button>
-            <button type="button" class="text-button clear" disabled>Clear</button>
-          </div>
-          <div class="form-actions">
-            <button class="primary" type="submit" disabled>Check website</button>
-          </div>
-        </form>
-        <div class="result" role="status" aria-atomic="true"></div>
-      </div>
-      <p id="engine-status" role="status"></p>
-      <noscript><p class="javascript-note">Enable JavaScript to use the checker.</p></noscript>
-      <p class="privacy"><span class="icon icon-lock" aria-hidden="true"></span><span>Checks run in your browser. Pasted links are never opened.</span></p>
+    <section class="checker panel">
+      <h2>Run the checker locally</h2>
+      <p>The checker uses a C++ server to process HTML forms. This GitHub Pages site serves the project information.</p>
+      <a href="https://github.com/AbdulHai564/scam-checker#run-locally">Local setup and usage</a>
     </section>
   </main>
 </body>

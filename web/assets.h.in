@@ -1,0 +1,10 @@
+#pragma once
+
+namespace scam::web {
+inline constexpr auto page = R"SCAM_HTML(
+@CHECKER_HTML@
+)SCAM_HTML";
+inline constexpr auto stylesheet = R"SCAM_CSS(
+@CHECKER_CSS@
+)SCAM_CSS";
+}

@@ -1,0 +1,37 @@
+cmake_minimum_required(VERSION 3.21)
+project(ScamChecker LANGUAGES C CXX)
+
+include(FetchContent)
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "")
+set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "")
+set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE BOOL "")
+set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF CACHE BOOL "")
+set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF CACHE BOOL "")
+set(ADA_TESTING OFF CACHE BOOL "")
+set(ADA_BENCHMARKS OFF CACHE BOOL "")
+set(ADA_TOOLS OFF CACHE BOOL "")
+FetchContent_Declare(httplib
+  URL https://codeload.github.com/yhirose/cpp-httplib/tar.gz/refs/tags/v0.68.0)
+FetchContent_Declare(ada
+  URL https://codeload.github.com/ada-url/ada/tar.gz/refs/tags/v4.1.1)
+FetchContent_Declare(utf8proc
+  URL https://codeload.github.com/JuliaStrings/utf8proc/tar.gz/refs/tags/v2.11.2)
+FetchContent_MakeAvailable(httplib ada utf8proc)
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS web/checker.html styles.css)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/web/checker.html" CHECKER_HTML)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/styles.css" CHECKER_CSS)
+configure_file(web/assets.h.in assets.h @ONLY)
+
+add_executable(scam-checker server.cpp detector.cpp)
+target_compile_features(scam-checker PRIVATE cxx_std_20)
+target_compile_definitions(scam-checker PRIVATE CPPHTTPLIB_FORM_URL_ENCODED_PAYLOAD_MAX_LENGTH=262144)
+target_include_directories(scam-checker PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_libraries(scam-checker PRIVATE httplib::httplib ada::ada utf8proc)
+if(MSVC)
+  target_compile_options(scam-checker PRIVATE /utf-8)
+endif()
